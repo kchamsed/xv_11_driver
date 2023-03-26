@@ -102,7 +102,6 @@ public:
     return kPublishRpmFlag;
   }
 
-
   std::string port_param()
   {
     if (this->get_param("port", m_port))
@@ -140,10 +139,10 @@ public:
   }
 
 private:
-  std::string m_port{};
-  int m_baud_rate{};
-  std::string m_frame_id{};
-  int m_firmware_number{};
+  std::string m_port{kPort};
+  int m_baud_rate{kBaudRate};
+  std::string m_frame_id{kFrameId};
+  int m_firmware_number{kFirmWareVersion};
   bool m_publish_rpm{kPublishRpmFlag};
 
   template <typename T>
@@ -213,5 +212,5 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-    return 0;
+  return 0;
 }
