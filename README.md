@@ -32,5 +32,12 @@ Run the driver using a different frame_id
 
 If all goes well this will produce messages of type LaserScan on topic /scan
 
+
+Note: You may need to grant read/write access to the port (e.g., sudo chmod 775 /dev/ttyXXX).
+
+If there is no tf available, rviz2 will not visualize the scans and will discard them. In this case, simply publish one, for example:
+        
+        
+    ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 0.0001  map neato_laser
     
 
