@@ -105,45 +105,45 @@ public:
 
   std::string port_param()
   {
-    if (this->get_param("port", port))
+    if (this->get_param("port", m_port))
     {
-      return port;
+      return m_port;
     }
     return kPort;
   }
 
   int baud_rate_param()
   {
-    if (this->get_param("baud_rate", baud_rate))
+    if (this->get_param("baud_rate", m_baud_rate))
     {
-      return baud_rate;
+      return m_baud_rate;
     }
     return kBaudRate;
   }
 
   std::string frame_id_param()
   {
-    if (this->get_param("frame_id", frame_id))
+    if (this->get_param("frame_id", m_frame_id))
     {
-      return frame_id;
+      return m_frame_id;
     }
     return kFrameId;
   }
 
   int firmware_number_param()
   {
-    if (get_param("firmware_version", firmware_number))
+    if (get_param("firmware_version", m_firmware_number))
     {
-      return firmware_number;
+      return m_firmware_number;
     }
     return kFirmWareVersion;
   }
 
 private:
-  std::string port{};
-  int baud_rate{};
-  std::string frame_id{};
-  int firmware_number{};
+  std::string m_port{};
+  int m_baud_rate{};
+  std::string m_frame_id{};
+  int m_firmware_number{};
   bool m_publish_rpm{kPublishRpmFlag};
 
   template <typename T>
