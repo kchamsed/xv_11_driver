@@ -1,3 +1,5 @@
+
+
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
@@ -63,70 +65,126 @@
 
 // default xv11 dev name.  Suggest you use symbolic link for an easier to ricognize name on your system
 // example:  sudo ln -s /dev/yourTtyDevName /dev/ttyXV11
-// Here I assume you have setup symbolic link to your actual serial port tty driver to the lidar
-#define XV11_PORT_DEFAULT "/dev/ttyXV11"           // Serial device driver name (sym link to real dev)
-#define XV11_BAUD_RATE_DEFAULT 115200              // Serial baud rate
-#define XV11_FRAME_ID_DEFAULT "neato_laser"        // frame_id in LaserScan messages
-#define XV11_FIRMWARE_VERSION_DEFAULT 2            // XV-11 firmware rev. 1 is oldest
+// Here I assume you have setup symbolic link to your actual serial port tty driver to the lidar 
+constexpr int kBaudRate = 115200; // Serial baud rate
+constexpr int  kFirmWareVersion = 2; // XV-11 firmware rev. 1 is oldest
+constexpr auto kPort = "/dev/ttyUSB0"; // Serial device driver name (sym link to real dev)
+constexpr auto kFrameId = "neato_laser"; // frame_id in LaserScan messages
 
+class XV11LaserNode: public rclcpp::Node
+{
+  public:
+    XV11LaserNode():Node("xv11_laser")
+    {
+      this->declare_parameter("port", kPort);
+      this->declare_parameter("baud_rate", kBaudRate);
+      this->declare_parameter("frame_id", kFrameId);
+      this->declare_parameter("firmware_version", kFirmWareVersion);
+    }
+
+    void dump()
+    {
+      std::cout << port_param() << "\n";
+      std::cout << baud_rate_param() << "\n";
+      std::cout << frame_id_param() << "\n";
+      std::cout << firmware_number_param() << "\n";
+    }
+
+    std::string port_param()
+    {
+      if(this->get_param("port", port))
+      {
+        return port;
+      }
+      return kPort;
+    }
+
+    int baud_rate_param ()
+    {
+      if(this->get_param("baud_rate", baud_rate))
+      {
+        return baud_rate;
+      }
+      return kBaudRate;
+    }
+
+    std::string frame_id_param()
+    {
+      if(this->get_param("frame_id", frame_id))
+      {
+        return frame_id;
+      }
+      return kFrameId;
+    }
+
+    int firmware_number_param()
+    {
+      if(get_param("firmware_version", firmware_number))
+      {
+        return firmware_number;
+      }
+      return kFirmWareVersion;
+    }
+
+  private: 
+    std::string port{};
+    int baud_rate{};
+    std::string frame_id{};
+    int firmware_number{};
+
+    template<typename T>
+    bool get_param(std::string param_name_str, T& param)
+    {
+      if(this->get_parameter(param_name_str, param))
+      {
+        return true;
+      }
+      return false;
+    }
+
+};
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
-  auto node = rclcpp::Node::make_shared("xv11_laser");
-
-  node->declare_parameter("port");
-  auto port_param      = rclcpp::Parameter("port", XV11_PORT_DEFAULT);
-
-  node->declare_parameter("baud_rate");
-  auto baud_rate_param = rclcpp::Parameter("baud_rate", XV11_BAUD_RATE_DEFAULT);
-
-  node->declare_parameter("frame_id");
-  auto frame_id_param  = rclcpp::Parameter("frame_id", XV11_FRAME_ID_DEFAULT);
-
-  node->declare_parameter("firmware_version");
-  auto firmware_param  = rclcpp::Parameter("firmware_version", XV11_FIRMWARE_VERSION_DEFAULT);
-    
-  node->get_parameter_or("port", port_param, port_param);
-  node->get_parameter_or("baud_rate", baud_rate_param, baud_rate_param);
-  node->get_parameter_or("frame_id", frame_id_param, frame_id_param);
-  node->get_parameter_or("firmware_version", firmware_param, firmware_param);
-
-  std::string port     = port_param.value_to_string();
-  int baud_rate        = baud_rate_param.as_int();
-  std::string frame_id = frame_id_param.value_to_string();
-  int firmware_number  = firmware_param.as_int();
+  auto node = std::make_shared<XV11LaserNode>();
 
   auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>("scan", 10);
 
+
+  node->dump();
+
   // std_msgs::msg::UInt16 rpms;
   boost::asio::io_service io;
-
-  try {
-    xv_11_driver::XV11Laser laser(port, baud_rate, firmware_number, io);
+  //boost::asio::serial_port serial_(io, "/dev/ttyUSB1");
+  //try {
+    xv_11_driver::XV11Laser laser(node->port_param(), node->baud_rate_param(), node->firmware_number_param(), io);
+    //boost::asio::serial_port serial_(io, "/dev/ttyUSB1");
+    //xv_11_driver::XV11Laser2 laser(io);
 
     // auto motor_pub = node->create_publisher<std_msgs::UInt16>("rpms",1000);
 
     while (rclcpp::ok()) {
       sensor_msgs::msg::LaserScan *scan;
       scan = new sensor_msgs::msg::LaserScan;
-      // sensor_msgs::LaserScan::Ptr scan(new sensor_msgs::LaserScan);
-      scan->header.frame_id = frame_id;
+      
+      //sensor_msgs::LaserScan::Ptr scan(new sensor_msgs::LaserScan);
+      scan->header.frame_id = node->frame_id_param();
       scan->header.stamp = rclcpp::Clock().now();   //  ROS was  Time::now();
       laser.poll(scan);
       laser_pub->publish(*scan);
-
+      //std::cout<<"############" << scan->ranges[0]<<"\n";
       //rpms.data=laser.rpms;
-      // motor_pub->publish(rpms);
+      //motor_pub->publish(rpms);
 
     }
     laser.close();
-    return 0;
-  } catch (...) {
-    RCLCPP_ERROR(node->get_logger(), "Error instantiating laser object. Check correct port and baud rate!");
-    return -1;
-  }
+  //   return 0;
+  // } catch (...) {
+  //   RCLCPP_ERROR(node->get_logger(), "11 Error instantiating laser object. Check correct port and baud rate!");
+  //   return -1;
+  // }
 
 
   rclcpp::shutdown();
