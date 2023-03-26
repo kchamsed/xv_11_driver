@@ -59,6 +59,7 @@
 
 #include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <std_msgs/msg/u_int16.hpp>
 
 #define DEG2RAD (M_PI / 180.0)
 
@@ -69,6 +70,7 @@ constexpr int kBaudRate = 115200;        // Serial baud rate
 constexpr int kFirmWareVersion = 2;      // XV-11 firmware rev. 1 is oldest
 constexpr auto kPort = "/dev/ttyXV11";   // Serial device driver name (sym link to real dev)
 constexpr auto kFrameId = "neato_laser"; // frame_id in LaserScan messages
+constexpr bool kPublishRpmFlag = true;   // whether to publish rpms 
 
 class XV11LaserNode : public rclcpp::Node
 {
@@ -79,6 +81,7 @@ public:
     this->declare_parameter("baud_rate", kBaudRate);
     this->declare_parameter("frame_id", kFrameId);
     this->declare_parameter("firmware_version", kFirmWareVersion);
+    this->declare_parameter("publish_rmp", kPublishRpmFlag);
   }
 
   void dump()
@@ -87,7 +90,18 @@ public:
     std::cout << baud_rate_param() << "\n";
     std::cout << frame_id_param() << "\n";
     std::cout << firmware_number_param() << "\n";
+    std::cout << publish_rpm_param() << "\n";
   }
+
+  bool publish_rpm_param()
+  {
+    if (this->get_param("publish_rmp", m_publish_rpm))
+    {
+      return m_publish_rpm;
+    }
+    return kPublishRpmFlag;
+  }
+
 
   std::string port_param()
   {
@@ -130,6 +144,7 @@ private:
   int baud_rate{};
   std::string frame_id{};
   int firmware_number{};
+  bool m_publish_rpm{kPublishRpmFlag};
 
   template <typename T>
   bool get_param(std::string param_name_str, T &param)
@@ -149,8 +164,8 @@ int main(int argc, char *argv[])
   auto node = std::make_shared<XV11LaserNode>();
 
   auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>("scan", 10);
-  // auto motor_pub = node->create_publisher<std_msgs::UInt16>("rpms",1000);
-
+  auto motor_pub = node->create_publisher<std_msgs::msg::UInt16>("rpms",1000);
+  
   node->dump();
 
   // std_msgs::msg::UInt16 rpms;
@@ -168,8 +183,13 @@ int main(int argc, char *argv[])
       scan->header.stamp = rclcpp::Clock().now(); //  ROS was  Time::now();
       laser.poll(scan);
       laser_pub->publish(*scan);
-      // rpms.data=laser.rpms;
-      // motor_pub->publish(rpms);
+      
+      if(node->publish_rpm_param())
+      {
+        std_msgs::msg::UInt16 rpms;
+        rpms.data=laser.rpms;
+        motor_pub->publish(rpms);
+      }
     }
     laser.close();
     rclcpp::shutdown();
@@ -178,7 +198,7 @@ int main(int argc, char *argv[])
   {
     std::stringstream ss;
     ss << "Runtime error: " << re.what();
-    ss << "Possible error: no permision to read from the specified port." << std::endl;
+    ss << ". Possible error: no permision to read from the specified port." << std::endl;
     RCLCPP_ERROR(node->get_logger(), ss.str().c_str());
   }
   catch (const std::exception &ex)
